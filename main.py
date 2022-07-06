@@ -99,7 +99,7 @@ mapper = linear_cmap(field_name='mse', palette=palette, low=grid_df.mse.min(),
 x_range = np.unique(grid_df.i_original_teff)
 y_range = np.unique(grid_df.i_new_teff)
 
-p = figure(title="Disentanglement",
+grid_figure = figure(title="Disentanglement",
            x_range=x_range,
            y_range=y_range,
            tools=GRID_TOOLS,
@@ -107,19 +107,19 @@ p = figure(title="Disentanglement",
            width=700, height=700)
 
 
-p.rect(x="i_original_teff", y="i_new_teff", #width=.0004, height=.025,
+grid_figure.rect(x="i_original_teff", y="i_new_teff", #width=.0004, height=.025,
        width=1, height=1,
        source=source,
        fill_color=mapper,
        line_color=None)
 
-p.xaxis.major_label_orientation = np.pi/2
-p.grid.grid_line_color = None
-p.axis.axis_line_color = None
-p.axis.major_tick_line_color = None
-p.axis.major_label_text_font_size = "10px"
-p.xaxis.axis_label = 'Original Teff'
-p.yaxis.axis_label = 'Generated Teff'
+grid_figure.xaxis.major_label_orientation = np.pi/2
+grid_figure.grid.grid_line_color = None
+grid_figure.axis.axis_line_color = None
+grid_figure.axis.major_tick_line_color = None
+grid_figure.axis.major_label_text_font_size = "10px"
+grid_figure.xaxis.axis_label = 'Original Teff'
+grid_figure.yaxis.axis_label = 'Generated Teff'
 
 # Color Bar
 n_ticks = 10  # how many ticks do you want?
@@ -129,7 +129,7 @@ color_ticks = FixedTicker(ticks=ticks)
 color_bar = ColorBar(color_mapper=mapper['transform'],
                      ticker=color_ticks,
                      formatter=BasicTickFormatter(precision=2, use_scientific=False))
-p.add_layout(color_bar, 'right')
+grid_figure.add_layout(color_bar, 'right')
 # END GRID FIGURE #
 
 ### DATATABLE FIGURE ###
@@ -152,7 +152,9 @@ data_table = DataTable(source=table_source, columns=table_columns) #, width=400,
 ### SPECTRA COMPARISON FIGURE ###
 spectra_fig = figure(title="Spectra Comparison",
                      tools=SPECTRA_TOOLS,
+                     y_range=(-0.1,1.1)
                     )
+
 
 orig_spectrum_source = ColumnDataSource(data=dict({
     'spectra': np.array([]),
@@ -164,18 +166,31 @@ new_spectrum_source = ColumnDataSource(data=dict({
     'waves': np.array([]),
 }))
 
+abs_diff_source = ColumnDataSource(data=dict({
+    'abs_diff': np.array([]),
+    'zero': np.array([]),
+    'waves': np.array([]),
+}))
+
+spectra_fig.varea(x="waves", y1='zero', y2="abs_diff", source=abs_diff_source,
+                  #color='firebrick', 
+                  alpha=0.15,
+                  legend_label='error')
+
 spectra_fig.line(x="waves", y="spectra", source=orig_spectrum_source,
-                 line_dash=(4,4),
+                 line_width=1.5, line_dash=(4,4),
                  line_color='gray',
                  legend_label='Original spectrum')
 
 spectra_fig.line(x="waves", y="spectra", source=new_spectrum_source, 
+                 line_width=1.5, 
                  line_color='orange',
                  legend_label='New spectrum')
+
 # END SPECTRA COMPARISON FIGURE #
 
 ### LAYOUT CONFIGURATION ###
-layout = row(p, 
+layout = row(grid_figure, 
          column(data_table, spectra_fig, sizing_mode='stretch_both'), 
          #data_table,
          sizing_mode='stretch_both')
@@ -203,6 +218,12 @@ def update_table(attr, old, new):
 
         new_spectrum_source.data = {
             'spectra': np.array([]),
+            'waves': np.array([]),
+        }
+
+        abs_diff_source.data = {
+            'abs_diff': np.array([]),
+            'zero': np.array([]),
             'waves': np.array([]),
         }
 
@@ -241,6 +262,11 @@ def update_spectra(attr, old, new):
             'spectra': np.array([]),
             'waves': np.array([]),
         }
+        abs_diff_source.data = {
+            'abs_diff': np.array([]),
+            'zero': np.array([]),
+            'waves': np.array([]),
+        }
         return
     
     _filter_df = dis_results_df[(dis_results_df['i_original_teff'] == table_source.data['original_teff'][new][0]) &
@@ -253,12 +279,20 @@ def update_spectra(attr, old, new):
     _original_spectra = _filter_df['original_spectra'].values[0]
     _new_spectra = _filter_df['new_spectra'].values[0]
 
+    #_abs_diff = np.power(_original_spectra-_new_spectra, 2)
+    _abs_diff = np.abs(_original_spectra - _new_spectra)
+
     orig_spectrum_source.data = {
         'spectra': _original_spectra,
         'waves': wavelengths,
     }
     new_spectrum_source.data = {
         'spectra': _new_spectra,
+        'waves': wavelengths,
+    }
+    abs_diff_source.data = {
+        'abs_diff': _abs_diff,
+        'zero': np.zeros(len(wavelengths)),
         'waves': wavelengths,
     }
     return
