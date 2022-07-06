@@ -10,16 +10,19 @@
 
 ##### IMPORTS #####
 from bokeh.plotting import figure, curdoc 
-from bokeh.models import ColumnDataSource, ColorBar, FixedTicker, BasicTickFormatter, DataTable, TableColumn, HoverTool
+from bokeh.models import ColumnDataSource, ColorBar, FixedTicker, BasicTickFormatter, DataTable, TableColumn, Slider
 from bokeh.transform import linear_cmap, log_cmap
 from bokeh.palettes import Oranges9
 from bokeh.layouts import row, column
 import colorcet as cc # https://colorcet.holoviz.org/user_guide/index.html#complete-list
 import pickle
 import os
+from matplotlib.pyplot import title
 import pandas as pd
 import numpy as np
 #-- END IMPORTS --#
+
+ALPHA_ERROR_VALUE = 0.15
 
 ##### LOAD DATA #####
 base_data_path = 'disentanglement_data'
@@ -146,7 +149,8 @@ table_columns = [
         TableColumn(field="new_teff", title="new_teff"),
         TableColumn(field="mse", title="MSE"),
     ]
-data_table = DataTable(source=table_source, columns=table_columns)
+data_table = DataTable(source=table_source, columns=table_columns,
+                       sizing_mode='stretch_width', height=200)
 # END DATATABLE FIGURE #
 
 ### SPECTRA COMPARISON FIGURE ###
@@ -173,9 +177,9 @@ abs_diff_source = ColumnDataSource(data=dict({
     'waves': np.array([]),
 }))
 
-spectra_fig.varea(x="waves", y1='zero', y2="abs_diff", source=abs_diff_source,
+varea = spectra_fig.varea(x="waves", y1='zero', y2="abs_diff", source=abs_diff_source,
                   #color='firebrick', 
-                  alpha=0.15,
+                  alpha=ALPHA_ERROR_VALUE,
                   legend_label='error')
 
 spectra_fig.line(x="waves", y="spectra", source=orig_spectrum_source,
@@ -190,11 +194,18 @@ spectra_fig.line(x="waves", y="spectra", source=new_spectrum_source,
 
 # END SPECTRA COMPARISON FIGURE #
 
+### WIDGETS ###
+alpha_slider = Slider(start=0, end=1, value=ALPHA_ERROR_VALUE, step=0.05, title='Error alpha value',
+                      width=200, height=25, sizing_mode='fixed', align='end', margin=(0,60,5,0))
+
+# END WIDGETS #
+
 ### LAYOUT CONFIGURATION ###
 layout = row(grid_figure, 
-         column(data_table, spectra_fig, sizing_mode='stretch_both'), 
-         #data_table,
-         sizing_mode='stretch_both')
+             column(data_table, 
+                    column(alpha_slider, spectra_fig, sizing_mode='stretch_both'), 
+                    sizing_mode='stretch_both'), 
+             sizing_mode='stretch_both')
 # END LAYOUT CONFIGURATION #
 #-- END BOKEH FIGURES --#
 
@@ -298,9 +309,14 @@ def update_spectra(attr, old, new):
     }
     return
 
+def my_slider_handler(attr, old, new):
+    varea.glyph.fill_alpha = new
+
 source.selected.on_change('indices', update_table)
 
 table_source.selected.on_change('indices', update_spectra)
+
+alpha_slider.on_change("value", my_slider_handler)
 #-- END CALLBACKS --#
 
 curdoc().add_root(layout)
