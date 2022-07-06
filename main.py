@@ -99,12 +99,12 @@ mapper = linear_cmap(field_name='mse', palette=palette, low=grid_df.mse.min(),
 x_range = np.unique(grid_df.i_original_teff)
 y_range = np.unique(grid_df.i_new_teff)
 
-grid_figure = figure(title="Disentanglement",
+grid_figure = figure(title="Disentanglement Grid",
            x_range=x_range,
            y_range=y_range,
            tools=GRID_TOOLS,
            tooltips=GRID_TOOLTIPS,
-           width=700, height=700)
+           output_backend="webgl")
 
 
 grid_figure.rect(x="i_original_teff", y="i_new_teff", #width=.0004, height=.025,
@@ -146,13 +146,14 @@ table_columns = [
         TableColumn(field="new_teff", title="new_teff"),
         TableColumn(field="mse", title="MSE"),
     ]
-data_table = DataTable(source=table_source, columns=table_columns) #, width=400, height=280)
+data_table = DataTable(source=table_source, columns=table_columns)
 # END DATATABLE FIGURE #
 
 ### SPECTRA COMPARISON FIGURE ###
 spectra_fig = figure(title="Spectra Comparison",
                      tools=SPECTRA_TOOLS,
-                     y_range=(-0.1,1.1)
+                     y_range=(-0.1,1.1),
+                     output_backend="webgl"
                     )
 
 
