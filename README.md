@@ -1,6 +1,8 @@
 # Disentanglement Analysis Visualization
 A bokeh server example to visualize the disentanglement performance of a beta-VAE
 
+![Tool example](https://github.com/raul-santovena/disentanglement-analysis/blob/main/example.gif)
+
 ## Instructions
 ### Set up the environment
 First of all, it is advisable to create a virtual environment.
