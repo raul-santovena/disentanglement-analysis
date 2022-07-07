@@ -172,13 +172,13 @@ new_spectrum_source = ColumnDataSource(data=dict({
     'waves': np.array([]),
 }))
 
-abs_diff_source = ColumnDataSource(data=dict({
+spectra_diff_source = ColumnDataSource(data=dict({
     'abs_diff': np.array([]),
     'zero': np.array([]),
     'waves': np.array([]),
 }))
 
-varea = spectra_fig.varea(x="waves", y1='zero', y2="abs_diff", source=abs_diff_source,
+varea = spectra_fig.varea(x="waves", y1='zero', y2="abs_diff", source=spectra_diff_source,
                   #color='firebrick', 
                   alpha=ALPHA_ERROR_VALUE,
                   legend_label='error')
@@ -206,7 +206,6 @@ LABELS = ['Absolute', 'Integral']
 error_radio_button_group = RadioButtonGroup(labels=LABELS, active=0,
                                             width=75,
                                             height=35, 
-                                            #align=('center','center'),
                                             sizing_mode='fixed',
                                             margin=(5,50,5,5)
                                            )
@@ -226,6 +225,29 @@ layout = row(grid_figure,
 
 
 ##### CALLBACKS #####
+### AUXILIARY FUNCTIONS ###
+def update_spectra_diff_source(active, original_spectra, new_spectra):
+    
+    #_abs_diff = np.power(_original_spectra-_new_spectra, 2)
+    _abs_diff = np.abs(original_spectra - new_spectra)
+
+    _active_label = LABELS[active]
+
+    if (_active_label == LABELS[0]): 
+        spectra_diff_source.data = {
+            'abs_diff': _abs_diff,
+            'zero': np.zeros(len(wavelengths)),
+            'waves': wavelengths,
+        } 
+    elif (_active_label == LABELS[1]):
+        spectra_diff_source.data = {
+            'abs_diff': original_spectra,
+            'zero': new_spectra,
+            'waves': wavelengths,
+        }
+
+
+# END AUXILIARY FUNCTIONS #
 def update_table(attr, old, new):
     
     # If there is any cell selected we empty the datatable
@@ -248,7 +270,7 @@ def update_table(attr, old, new):
             'waves': np.array([]),
         }
 
-        abs_diff_source.data = {
+        spectra_diff_source.data = {
             'abs_diff': np.array([]),
             'zero': np.array([]),
             'waves': np.array([]),
@@ -289,7 +311,7 @@ def update_spectra(attr, old, new):
             'spectra': np.array([]),
             'waves': np.array([]),
         }
-        abs_diff_source.data = {
+        spectra_diff_source.data = {
             'abs_diff': np.array([]),
             'zero': np.array([]),
             'waves': np.array([]),
@@ -306,8 +328,6 @@ def update_spectra(attr, old, new):
     _original_spectra = _filter_df['original_spectra'].values[0]
     _new_spectra = _filter_df['new_spectra'].values[0]
 
-    #_abs_diff = np.power(_original_spectra-_new_spectra, 2)
-    _abs_diff = np.abs(_original_spectra - _new_spectra)
 
     orig_spectrum_source.data = {
         'spectra': _original_spectra,
@@ -317,13 +337,11 @@ def update_spectra(attr, old, new):
         'spectra': _new_spectra,
         'waves': wavelengths,
     }
-    abs_diff_source.data = {
-        #'abs_diff': _abs_diff,
-        'abs_diff': _abs_diff,
-        #'zero': np.zeros(len(wavelengths)),
-        'zero': np.zeros(len(wavelengths)),
-        'waves': wavelengths,
-    }
+    
+    # Update error in the spectra figure
+    update_spectra_diff_source(active=error_radio_button_group.active, original_spectra=_original_spectra,
+                               new_spectra=_new_spectra)
+
     return
 
 def my_slider_handler(attr, old, new):
@@ -345,22 +363,9 @@ def my_error_rbg_handler(attr, old, new):
     _original_spectra = _filter_df['original_spectra'].values[0]
     _new_spectra = _filter_df['new_spectra'].values[0]
 
-    #_abs_diff = np.power(_original_spectra-_new_spectra, 2)
-    _abs_diff = np.abs(_original_spectra - _new_spectra)
-
-    _active_label = LABELS[new]
-    if (_active_label == LABELS[0]): 
-        abs_diff_source.data = {
-            'abs_diff': _abs_diff,
-            'zero': np.zeros(len(wavelengths)),
-            'waves': wavelengths,
-        } 
-    elif (_active_label == LABELS[1]):
-        abs_diff_source.data = {
-            'abs_diff': _original_spectra,
-            'zero': _new_spectra,
-            'waves': wavelengths,
-        } 
+    
+    update_spectra_diff_source(active=new, original_spectra=_original_spectra,
+                               new_spectra=_new_spectra) 
 
 
 source.selected.on_change('indices', update_table)
