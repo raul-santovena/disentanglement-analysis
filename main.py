@@ -9,8 +9,9 @@
 # --------------------
 
 ##### IMPORTS #####
+from distutils.log import error
 from bokeh.plotting import figure, curdoc 
-from bokeh.models import ColumnDataSource, ColorBar, FixedTicker, BasicTickFormatter, DataTable, TableColumn, Slider
+from bokeh.models import ColumnDataSource, ColorBar, FixedTicker, BasicTickFormatter, DataTable, TableColumn, Slider, RadioButtonGroup
 from bokeh.transform import linear_cmap, log_cmap
 from bokeh.palettes import Oranges9
 from bokeh.layouts import row, column
@@ -195,15 +196,29 @@ spectra_fig.line(x="waves", y="spectra", source=new_spectrum_source,
 # END SPECTRA COMPARISON FIGURE #
 
 ### WIDGETS ###
-alpha_slider = Slider(start=0, end=1, value=ALPHA_ERROR_VALUE, step=0.05, title='Error alpha value',
-                      width=200, height=25, sizing_mode='fixed', align='end', margin=(0,60,5,0))
+alpha_slider = Slider(start=0, end=1, value=ALPHA_ERROR_VALUE, step=0.05, title='Error Alpha Value',
+                      width=200, 
+                      height=35, 
+                      sizing_mode='fixed', 
+                      align='end', margin=(5,50,5,50))
+
+LABELS = ['Absolute', 'Integral']
+error_radio_button_group = RadioButtonGroup(labels=LABELS, active=0,
+                                            width=75,
+                                            height=35, 
+                                            #align=('center','center'),
+                                            sizing_mode='fixed',
+                                            margin=(5,50,5,5)
+                                           )
 
 # END WIDGETS #
 
 ### LAYOUT CONFIGURATION ###
 layout = row(grid_figure, 
              column(data_table, 
-                    column(alpha_slider, spectra_fig, sizing_mode='stretch_both'), 
+                    column(row(error_radio_button_group, alpha_slider, sizing_mode='stretch_width', align=('end', 'center')), 
+                           spectra_fig, 
+                           sizing_mode='stretch_both'), 
                     sizing_mode='stretch_both'), 
              sizing_mode='stretch_both')
 # END LAYOUT CONFIGURATION #
@@ -303,7 +318,9 @@ def update_spectra(attr, old, new):
         'waves': wavelengths,
     }
     abs_diff_source.data = {
+        #'abs_diff': _abs_diff,
         'abs_diff': _abs_diff,
+        #'zero': np.zeros(len(wavelengths)),
         'zero': np.zeros(len(wavelengths)),
         'waves': wavelengths,
     }
@@ -312,11 +329,47 @@ def update_spectra(attr, old, new):
 def my_slider_handler(attr, old, new):
     varea.glyph.fill_alpha = new
 
+def my_error_rbg_handler(attr, old, new):
+    _indices = table_source.selected.indices
+
+    if (len(_indices) == 0):
+        return
+
+    _filter_df = dis_results_df[(dis_results_df['i_original_teff'] == table_source.data['original_teff'][_indices][0]) &
+                                (dis_results_df['i_new_teff'] == table_source.data['new_teff'][_indices][0]) &
+                                (dis_results_df['ids'] == table_source.data['object_id'][_indices][0])]
+
+    # Select data, transform to list(necessary to multi_line) and update spectra source
+    #_original_spectra = np.vstack(_filter_df['original_spectra'].values).tolist()
+    #_new_spectra = np.vstack(_filter_df['new_spectra'].values).tolist()
+    _original_spectra = _filter_df['original_spectra'].values[0]
+    _new_spectra = _filter_df['new_spectra'].values[0]
+
+    #_abs_diff = np.power(_original_spectra-_new_spectra, 2)
+    _abs_diff = np.abs(_original_spectra - _new_spectra)
+
+    _active_label = LABELS[new]
+    if (_active_label == LABELS[0]): 
+        abs_diff_source.data = {
+            'abs_diff': _abs_diff,
+            'zero': np.zeros(len(wavelengths)),
+            'waves': wavelengths,
+        } 
+    elif (_active_label == LABELS[1]):
+        abs_diff_source.data = {
+            'abs_diff': _original_spectra,
+            'zero': _new_spectra,
+            'waves': wavelengths,
+        } 
+
+
 source.selected.on_change('indices', update_table)
 
 table_source.selected.on_change('indices', update_spectra)
 
 alpha_slider.on_change("value", my_slider_handler)
+
+error_radio_button_group.on_change('active', my_error_rbg_handler)
 #-- END CALLBACKS --#
 
 curdoc().add_root(layout)
