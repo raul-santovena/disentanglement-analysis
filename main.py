@@ -9,16 +9,14 @@
 # --------------------
 
 ##### IMPORTS #####
-from distutils.log import error
 from bokeh.plotting import figure, curdoc 
 from bokeh.models import ColumnDataSource, ColorBar, FixedTicker, BasicTickFormatter, DataTable, TableColumn, Slider, RadioButtonGroup
 from bokeh.transform import linear_cmap, log_cmap
 from bokeh.palettes import Oranges9
 from bokeh.layouts import row, column
-import colorcet as cc # https://colorcet.holoviz.org/user_guide/index.html#complete-list
+#import colorcet as cc # https://colorcet.holoviz.org/user_guide/index.html#complete-list
 import pickle
 import os
-from matplotlib.pyplot import title
 import pandas as pd
 import numpy as np
 #-- END IMPORTS --#
@@ -363,7 +361,6 @@ def my_error_rbg_handler(attr, old, new):
     _original_spectra = _filter_df['original_spectra'].values[0]
     _new_spectra = _filter_df['new_spectra'].values[0]
 
-    
     update_spectra_diff_source(active=new, original_spectra=_original_spectra,
                                new_spectra=_new_spectra) 
 
