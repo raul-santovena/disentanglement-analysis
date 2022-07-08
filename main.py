@@ -10,7 +10,7 @@
 
 ##### IMPORTS #####
 from bokeh.plotting import figure, curdoc 
-from bokeh.models import ColumnDataSource, ColorBar, FixedTicker, BasicTickFormatter, DataTable, TableColumn, Slider, RadioButtonGroup
+from bokeh.models import ColumnDataSource, Rect, ColorBar, FixedTicker, BasicTickFormatter, DataTable, TableColumn, Slider, RadioButtonGroup
 from bokeh.transform import linear_cmap, log_cmap
 from bokeh.palettes import Oranges9
 from bokeh.layouts import row, column
@@ -95,8 +95,13 @@ source = ColumnDataSource(data=grid_df)
 palette = list(Oranges9); palette.reverse()
 #palette = cc.CET_L18
 
-mapper = linear_cmap(field_name='mse', palette=palette, low=grid_df.mse.min(), 
-                           high=grid_df.mse.max())
+linear_mapper = linear_cmap(field_name='mse', palette=palette, low=grid_df.mse.min(), 
+                            high=grid_df.mse.max())
+
+log_mapper = log_cmap(field_name='mse', palette=palette, low=grid_df.mse.min(), 
+                      high=grid_df.mse.max())
+
+DEFAULT_MAPPER = linear_mapper
 
 x_range = np.unique(grid_df.i_original_teff)
 y_range = np.unique(grid_df.i_new_teff)
@@ -109,11 +114,15 @@ grid_figure = figure(title="Disentanglement Grid",
            output_backend="webgl")
 
 
-grid_figure.rect(x="i_original_teff", y="i_new_teff", #width=.0004, height=.025,
-       width=1, height=1,
-       source=source,
-       fill_color=mapper,
-       line_color=None)
+grid_gr = grid_figure.rect(x="i_original_teff", y="i_new_teff", #width=.0004, height=.025,
+                           width=1, height=1,
+                           source=source,
+                           fill_color=DEFAULT_MAPPER,
+                           line_color=None)
+
+# Initialize selected and nonselected sources to be able to color them (https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#selected-and-unselected-glyphs)
+selected_grid = Rect(fill_alpha=1, fill_color=DEFAULT_MAPPER, line_color=None)
+nonselected_grid = Rect(fill_alpha=0.4, fill_color=DEFAULT_MAPPER, line_color=None)
 
 grid_figure.xaxis.major_label_orientation = np.pi/2
 grid_figure.grid.grid_line_color = None
@@ -123,12 +132,15 @@ grid_figure.axis.major_label_text_font_size = "10px"
 grid_figure.xaxis.axis_label = 'Original Teff'
 grid_figure.yaxis.axis_label = 'Generated Teff'
 
+grid_gr.selection_glyph = selected_grid
+grid_gr.nonselection_glyph = nonselected_grid
+
 # Color Bar
 n_ticks = 10  # how many ticks do you want?
 ticks = np.linspace(grid_df.mse.min(), grid_df.mse.max(), n_ticks)  # round to desired precision 
 color_ticks = FixedTicker(ticks=ticks)
 
-color_bar = ColorBar(color_mapper=mapper['transform'],
+color_bar = ColorBar(color_mapper=DEFAULT_MAPPER['transform'],
                      ticker=color_ticks,
                      formatter=BasicTickFormatter(precision=2, use_scientific=False))
 grid_figure.add_layout(color_bar, 'right')
@@ -179,7 +191,7 @@ spectra_diff_source = ColumnDataSource(data=dict({
 varea = spectra_fig.varea(x="waves", y1='zero', y2="abs_diff", source=spectra_diff_source,
                   #color='firebrick', 
                   alpha=ALPHA_ERROR_VALUE,
-                  legend_label='error')
+                  legend_label='Error')
 
 spectra_fig.line(x="waves", y="spectra", source=orig_spectrum_source,
                  line_width=1.5, line_dash=(4,4),
@@ -208,10 +220,19 @@ error_radio_button_group = RadioButtonGroup(labels=LABELS, active=0,
                                             margin=(5,50,5,5)
                                            )
 
+COLOR_LABELS = ['Linear', 'Log']
+color_radio_button_group = RadioButtonGroup(labels=COLOR_LABELS, active=0,
+                                            width=75,
+                                            height=35, 
+                                            align='end',
+                                            sizing_mode='fixed',
+                                            margin=(5,130,0,5)
+                                           )
+
 # END WIDGETS #
 
 ### LAYOUT CONFIGURATION ###
-layout = row(grid_figure, 
+layout = row(column(color_radio_button_group, grid_figure, sizing_mode='stretch_both'),
              column(data_table, 
                     column(row(error_radio_button_group, alpha_slider, sizing_mode='stretch_width', align=('end', 'center')), 
                            spectra_fig, 
@@ -362,7 +383,18 @@ def my_error_rbg_handler(attr, old, new):
     _new_spectra = _filter_df['new_spectra'].values[0]
 
     update_spectra_diff_source(active=new, original_spectra=_original_spectra,
-                               new_spectra=_new_spectra) 
+                               new_spectra=_new_spectra)
+
+def my_color_rbg_handler(attr, old, new):
+    if (COLOR_LABELS[new] == 'Linear'):
+        grid_gr.glyph.fill_color = linear_mapper
+        grid_gr.selection_glyph.fill_color = linear_mapper
+        grid_gr.nonselection_glyph.fill_color = linear_mapper
+        
+    elif (COLOR_LABELS[new] == 'Log'):
+        grid_gr.glyph.fill_color = log_mapper
+        grid_gr.selection_glyph.fill_color = log_mapper
+        grid_gr.nonselection_glyph.fill_color = log_mapper
 
 
 source.selected.on_change('indices', update_table)
@@ -372,6 +404,8 @@ table_source.selected.on_change('indices', update_spectra)
 alpha_slider.on_change("value", my_slider_handler)
 
 error_radio_button_group.on_change('active', my_error_rbg_handler)
+
+color_radio_button_group.on_change('active', my_color_rbg_handler)
 #-- END CALLBACKS --#
 
 curdoc().add_root(layout)
