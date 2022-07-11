@@ -25,7 +25,7 @@ ALPHA_ERROR_VALUE = 0.15
 
 ##### LOAD DATA #####
 base_data_path = 'disentanglement_data'
-dataset_name = 'beta_vae_40'
+dataset_name = 'global_test_2'
 data_path = os.path.join(base_data_path, dataset_name)
 
 # Scaler
@@ -75,7 +75,7 @@ average_disentangled_results_df = dis_results_df.groupby(by=['i_original_teff', 
 
 ##### TOOLS AND TOOLTIPS #####
 GRID_TOOLS = ['tap', 'reset']
-SPECTRA_TOOLS = ['pan', 'box_zoom', 'reset']
+SPECTRA_TOOLS = ['pan', 'xwheel_zoom', 'box_zoom', 'reset']
 
 GRID_TOOLTIPS = [
     ("index", "$index"),
